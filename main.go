@@ -18,9 +18,10 @@ func main() {
 	service := &ChatCompletion{client: client, store: store}
 
 	s := echo.New()
+	// TODO: sort out endpoints
 	s.Use(CheckSessionMiddleware(store))
 	s.POST("/login", StartSession(store))
-	s.POST("/t_prompt", TeacherPreset())
+	s.POST("/preset", CreateLesson(service))
 	s.POST("/prompt", StudentPrompt(service))
 	// save the teacher preset
 	// separate the logic for teachers and students

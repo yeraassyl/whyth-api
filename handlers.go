@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -19,7 +18,8 @@ type PresetRequest struct {
 }
 
 type StartSessionRequest struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	LessonID string `json:"lesson_id"`
 }
 
 func StudentPrompt(cc *ChatCompletion) echo.HandlerFunc {
@@ -41,17 +41,23 @@ func StudentPrompt(cc *ChatCompletion) echo.HandlerFunc {
 	}
 }
 
-func TeacherPreset() echo.HandlerFunc {
+func CreateLesson(cc *ChatCompletion) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		data := &PresetRequest{}
 		err := c.Bind(data)
-
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "error unmarshalling the request body")
 		}
+		// TODO: Generate lessonID somehow
+		lessonID := ""
+		err = cc.SaveLesson(lessonID, data)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "can't create s lesson")
+		}
+		// TODO: Generate link somehow
+		link := lessonID
 
-		fmt.Println(data.Preset)
-		return nil
+		return c.JSON(http.StatusOK, link)
 	}
 }
 
@@ -67,7 +73,7 @@ func StartSession(store *InMemoryStore) echo.HandlerFunc {
 		cookie := http.Cookie{Name: "session_id", Value: sessionID, HttpOnly: true, Expires: time.Now().Add(time.Hour * 24)}
 		c.SetCookie(&cookie)
 
-		err = store.CreateSession(sessionID, data.Name)
+		err = store.CreateSession(data.LessonID, sessionID, data.Name)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
