@@ -19,10 +19,11 @@ func main() {
 
 	s := echo.New()
 	// TODO: sort out endpoints
-	s.Use(CheckSessionMiddleware(store))
-	s.POST("/login", StartSession(store))
-	s.POST("/preset", CreateLesson(service))
-	s.POST("/prompt", StudentPrompt(service))
+	s.POST("/session", StartSession(store))
+	s.POST("/lesson", CreateLesson(service))
+	s.POST("/prompt", StudentPrompt(service), CheckSessionMiddleware(store))
+	s.GET("/chat-history", ChatHistory(store))
+
 	// save the teacher preset
 	// separate the logic for teachers and students
 	// start session endpoint for students

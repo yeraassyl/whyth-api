@@ -18,7 +18,7 @@ type PresetRequest struct {
 }
 
 type StartSessionRequest struct {
-	Name     string `json:"name"`
+	Name     string `json:"username"`
 	LessonID string `json:"lesson_id"`
 }
 
@@ -49,7 +49,7 @@ func CreateLesson(cc *ChatCompletion) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "error unmarshalling the request body")
 		}
 		// TODO: Generate lessonID somehow
-		lessonID := ""
+		lessonID := uuid.New().String()
 		err = cc.SaveLesson(lessonID, data)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "can't create s lesson")
@@ -82,11 +82,17 @@ func StartSession(store *InMemoryStore) echo.HandlerFunc {
 	}
 }
 
+func ChatHistory(store *InMemoryStore) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		return nil
+	}
+}
+
 func CheckSessionMiddleware(store *InMemoryStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			session, err := c.Cookie("sessionID")
-			if err == nil && session.Value != "" {
+			session, err := c.Cookie("session_id")
+			if err != nil || session.Value == "" {
 				return c.Redirect(http.StatusSeeOther, "/login")
 			}
 

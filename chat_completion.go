@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -19,17 +20,39 @@ type ChatCompletion struct {
 }
 
 func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessionID string) (string, error) {
+	// Retrieve conversation history from Redis
+	history, err := cc.store.GetChatHistory(sessionID)
+	if err != nil {
+		return "", err
+	}
+
+	// Prepare the API request messages, including the conversation history
+	messages := make([]openai.ChatCompletionMessage, len(history))
+	for i, msg := range history {
+		messages[i] = openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: msg.Content,
+		}
+		if !msg.IsUser {
+			messages[i].Role = openai.ChatMessageRoleAssistant
+		}
+	}
+
+	// Add the user's new message to the API request
+	messages = append(messages, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: data.Prompt,
+	})
+
+	fmt.Println(messages)
+
+	// Call the API with the conversation history
 	resp, err := cc.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: data.Prompt,
-				},
-			},
-			User: sessionID,
+			Model:    openai.GPT3Dot5Turbo,
+			Messages: messages,
+			User:     sessionID,
 		},
 	)
 
@@ -37,32 +60,31 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 		return "", err
 	}
 
-	msg := &ChatMessage{
+	// Save user message to Redis
+	userMsg := &ChatMessage{
 		Content:   data.Prompt,
 		Timestamp: time.Now().Unix(),
 		IsUser:    true,
 	}
-
-	err = cc.store.SaveMessage(sessionID, msg)
+	err = cc.store.SaveMessage(sessionID, userMsg)
 
 	if err != nil {
 		return "", err
 	}
 
-	msg = &ChatMessage{
+	// Save assistant response to Redis
+	assistantMsg := &ChatMessage{
 		Content:   resp.Choices[0].Message.Content,
 		Timestamp: time.Now().Unix(),
 		IsUser:    false,
 	}
-
-	err = cc.store.SaveMessage(sessionID, msg)
+	err = cc.store.SaveMessage(sessionID, assistantMsg)
 
 	if err != nil {
 		return "", err
 	}
 
-	return msg.Content, nil
-
+	return assistantMsg.Content, nil
 }
 
 func (cc *ChatCompletion) SaveLesson(lessonID string, data *PresetRequest) error {

@@ -14,7 +14,6 @@ type InMemoryStore struct {
 func (s *InMemoryStore) CreateSession(lessonID, sessionID string, username string) error {
 	sessionTimeout := 24 * time.Hour
 	pipe := s.rClient.Pipeline()
-	// use set
 	pipe.Set(sessionID, username, sessionTimeout)
 
 	pipe.SAdd(lessonID+":sessions", sessionID)
@@ -51,11 +50,11 @@ func (s *InMemoryStore) SaveMessage(sessionID string, msg *ChatMessage) error {
 		return err
 	}
 	sessionTimeout := 24 * time.Hour
-	return s.rClient.Expire(sessionID+":message", sessionTimeout).Err()
+	return s.rClient.Expire(sessionID+":messages", sessionTimeout).Err()
 }
 
 func (s *InMemoryStore) GetChatHistory(sessionID string) ([]ChatMessage, error) {
-	msgList, err := s.rClient.LRange(sessionID+":message", 0, -1).Result()
+	msgList, err := s.rClient.LRange(sessionID+":messages", 0, -1).Result()
 	if err != nil {
 		return nil, err
 	}
