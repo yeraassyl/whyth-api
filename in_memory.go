@@ -81,6 +81,10 @@ func (s *InMemoryStore) SaveLessonPresets(lessonID string, presets *PresetReques
 	return err
 }
 
+func (s *InMemoryStore) GetLessonPreset(lessonID string) (string, error) {
+	return s.rClient.HGet(lessonID, "preset").Result()
+}
+
 // need an identifier for each lesson
 // need to connect each student session to this lesson identifier
 // also need to save presets on the lesson identifier

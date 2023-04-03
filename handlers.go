@@ -17,6 +17,11 @@ type PresetRequest struct {
 	Preset string `json:"preset"`
 }
 
+type PresetResponse struct {
+	LessonID string `json:"lesson_id"`
+	Link     string `json:"link"`
+}
+
 type StartSessionRequest struct {
 	Name     string `json:"username"`
 	LessonID string `json:"lesson_id"`
@@ -57,11 +62,14 @@ func CreateLesson(cc *ChatCompletion) echo.HandlerFunc {
 		// TODO: Generate link somehow
 		link := lessonID
 
-		return c.JSON(http.StatusOK, link)
+		return c.JSON(http.StatusOK, PresetResponse{
+			LessonID: lessonID,
+			Link:     link,
+		})
 	}
 }
 
-func StartSession(store *InMemoryStore) echo.HandlerFunc {
+func StartSession(cc *ChatCompletion) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		data := &StartSessionRequest{}
 		err := c.Bind(data)
@@ -73,7 +81,7 @@ func StartSession(store *InMemoryStore) echo.HandlerFunc {
 		cookie := http.Cookie{Name: "session_id", Value: sessionID, HttpOnly: true, Expires: time.Now().Add(time.Hour * 24)}
 		c.SetCookie(&cookie)
 
-		err = store.CreateSession(data.LessonID, sessionID, data.Name)
+		err = cc.CreateSession(data.LessonID, sessionID, data.Name)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
@@ -84,7 +92,12 @@ func StartSession(store *InMemoryStore) echo.HandlerFunc {
 
 func ChatHistory(store *InMemoryStore) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		return nil
+		sessionID := c.Get("sessionID").(string)
+		history, err := store.GetChatHistory(sessionID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "error getting chat history")
+		}
+		return c.JSON(http.StatusOK, history)
 	}
 }
 
