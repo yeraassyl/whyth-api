@@ -12,15 +12,24 @@ type InMemoryStore struct {
 }
 
 func (s *InMemoryStore) CreateSession(lessonID, sessionID string, username string) error {
-	sessionTimeout := 24 * time.Hour
+
+	// Getting the expiration time
+	expiresUnix, err := s.rClient.HGet(lessonID, "expires").Int64()
+	expires := time.Unix(expiresUnix, 0)
+	if err != nil {
+		return err
+	}
 	pipe := s.rClient.Pipeline()
-	pipe.Set(sessionID, username, sessionTimeout)
 
+	// Set username and expiration
+	pipe.HSet(sessionID, "username", username)
+	pipe.PExpireAt(sessionID, expires)
+
+	// Add session to the list
 	pipe.SAdd(lessonID+":sessions", sessionID)
-	pipe.Expire(lessonID+":sessions", sessionTimeout)
 
-	_, err := pipe.Exec()
-	return err
+	_, err = pipe.Exec()
+	return nil
 }
 
 func (s *InMemoryStore) GetStudentSessionForLesson(lessonID string) ([]string, error) {
@@ -32,7 +41,7 @@ func (s *InMemoryStore) GetStudentSessionForLesson(lessonID string) ([]string, e
 }
 
 func (s *InMemoryStore) GetUserSession(sessionID string) (string, error) {
-	val, err := s.rClient.Get(sessionID).Result()
+	val, err := s.rClient.HGet(sessionID, "username").Result()
 
 	if err != nil {
 		return "", err
@@ -72,10 +81,15 @@ func (s *InMemoryStore) GetChatHistory(sessionID string) ([]ChatMessage, error) 
 
 func (s *InMemoryStore) SaveLessonPresets(lessonID string, presets *PresetRequest) error {
 	sessionTimeout := 24 * time.Hour
+	expires := time.Now().Add(sessionTimeout)
 	pipe := s.rClient.Pipeline()
 
 	pipe.HSet(lessonID, "preset", presets.Preset)
-	pipe.Expire(lessonID, sessionTimeout)
+	pipe.HSet(lessonID, "expires", expires.Unix())
+	pipe.SAdd(lessonID+":sessions", "temp")
+	pipe.SPop(lessonID + ":sessions")
+	pipe.PExpireAt(lessonID, expires)
+	pipe.PExpireAt(lessonID+":sessions", expires)
 
 	_, err := pipe.Exec()
 	return err

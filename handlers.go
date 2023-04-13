@@ -19,7 +19,6 @@ type PresetRequest struct {
 
 type PresetResponse struct {
 	LessonID string `json:"lesson_id"`
-	Link     string `json:"link"`
 }
 
 type StartSessionRequest struct {
@@ -53,18 +52,13 @@ func CreateLesson(cc *ChatCompletion) echo.HandlerFunc {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "error unmarshalling the request body")
 		}
-		// TODO: Generate lessonID somehow
 		lessonID := uuid.New().String()
 		err = cc.SaveLesson(lessonID, data)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "can't create s lesson")
 		}
-		// TODO: Generate link somehow
-		link := lessonID
-
 		return c.JSON(http.StatusOK, PresetResponse{
 			LessonID: lessonID,
-			Link:     link,
 		})
 	}
 }
@@ -85,8 +79,7 @@ func StartSession(cc *ChatCompletion) echo.HandlerFunc {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
-		// TODO: set the url
-		return c.Redirect(http.StatusSeeOther, "/")
+		return c.JSON(http.StatusOK, "Session successfully created")
 	}
 }
 
@@ -106,12 +99,12 @@ func CheckSessionMiddleware(store *InMemoryStore) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			session, err := c.Cookie("session_id")
 			if err != nil || session.Value == "" {
-				return c.Redirect(http.StatusSeeOther, "/login")
+				return echo.NewHTTPError(http.StatusUnauthorized, "")
 			}
 
 			username, err := store.GetUserSession(session.Value)
 			if err == redis.Nil {
-				return c.Redirect(http.StatusTemporaryRedirect, "/login")
+				return echo.NewHTTPError(http.StatusUnauthorized, "Session expired or invalid")
 			} else if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			}
