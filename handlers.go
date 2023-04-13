@@ -26,6 +26,15 @@ type StartSessionRequest struct {
 	LessonID string `json:"lesson_id"`
 }
 
+type SessionCreatedResponse struct {
+	Preset string `json:"preset"`
+}
+
+type ChatHistoryResponse struct {
+	LessonName string        `json:"lessonName"`
+	Messages   []ChatMessage `json:"messages"`
+}
+
 func StudentPrompt(cc *ChatCompletion) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		data := &PromptRequest{}
@@ -75,22 +84,30 @@ func StartSession(cc *ChatCompletion) echo.HandlerFunc {
 		cookie := http.Cookie{Name: "session_id", Value: sessionID, HttpOnly: true, Expires: time.Now().Add(time.Hour * 24)}
 		c.SetCookie(&cookie)
 
-		err = cc.CreateSession(data.LessonID, sessionID, data.Name)
+		response, err := cc.CreateSession(data.LessonID, sessionID, data.Name)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
-		return c.JSON(http.StatusOK, "Session successfully created")
+
+		return c.JSON(http.StatusOK, response)
 	}
 }
 
 func ChatHistory(store *InMemoryStore) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		sessionID := c.Get("sessionID").(string)
-		history, err := store.GetChatHistory(sessionID)
+		lessonName, err := store.GetLessonPreset2(sessionID)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "error getting chat history")
 		}
-		return c.JSON(http.StatusOK, history)
+		history, err := store.GetChatHistory(sessionID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "error getting chat history2")
+		}
+		return c.JSON(http.StatusOK, &ChatHistoryResponse{
+			LessonName: lessonName,
+			Messages:   history,
+		})
 	}
 }
 

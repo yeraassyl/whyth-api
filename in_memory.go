@@ -15,14 +15,20 @@ func (s *InMemoryStore) CreateSession(lessonID, sessionID string, username strin
 
 	// Getting the expiration time
 	expiresUnix, err := s.rClient.HGet(lessonID, "expires").Int64()
-	expires := time.Unix(expiresUnix, 0)
 	if err != nil {
 		return err
 	}
+	expires := time.Unix(expiresUnix, 0)
+	preset, err := s.rClient.HGet(lessonID, "preset").Result()
+	if err != nil {
+		return err
+	}
+
 	pipe := s.rClient.Pipeline()
 
 	// Set username and expiration
 	pipe.HSet(sessionID, "username", username)
+	pipe.HSet(sessionID, "preset", preset)
 	pipe.PExpireAt(sessionID, expires)
 
 	// Add session to the list
@@ -97,6 +103,10 @@ func (s *InMemoryStore) SaveLessonPresets(lessonID string, presets *PresetReques
 
 func (s *InMemoryStore) GetLessonPreset(lessonID string) (string, error) {
 	return s.rClient.HGet(lessonID, "preset").Result()
+}
+
+func (s *InMemoryStore) GetLessonPreset2(sessionID string) (string, error) {
+	return s.rClient.HGet(sessionID, "preset").Result()
 }
 
 // need an identifier for each lesson

@@ -99,17 +99,17 @@ func (cc *ChatCompletion) SaveLesson(lessonID string, data *PresetRequest) error
 	return cc.store.SaveLessonPresets(lessonID, data)
 }
 
-func (cc *ChatCompletion) CreateSession(lessonID, sessionID, username string) error {
+func (cc *ChatCompletion) CreateSession(lessonID, sessionID, username string) (*SessionCreatedResponse, error) {
 	// TODO: Should be transactional??
 
 	err := cc.store.CreateSession(lessonID, sessionID, username)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	preset, err := cc.store.GetLessonPreset(lessonID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO: polish system message to make it efficient
@@ -121,7 +121,10 @@ func (cc *ChatCompletion) CreateSession(lessonID, sessionID, username string) er
 		Role:      System,
 	})
 
-	return err
+	response := &SessionCreatedResponse{
+		Preset: preset,
+	}
+	return response, err
 }
 
 // how teacher will access the completion?
