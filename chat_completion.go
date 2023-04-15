@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -41,6 +42,8 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 			Content: msg.Content,
 		}
 		if msg.Role == System {
+			content := fmt.Sprintf("You will be teaching %s, be as concise as possible, don't give out answers for problems", messages[i].Content)
+			messages[i].Content = content
 			messages[i].Role = openai.ChatMessageRoleSystem
 		}
 		if msg.Role == Assistant {
