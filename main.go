@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/go-redis/redis"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -18,6 +19,10 @@ func main() {
 	service := &ChatCompletion{client: client, store: store}
 
 	s := echo.New()
+	s.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
+	}))
+
 	// TODO: sort out endpoints
 	s.POST("/session", StartSession(service))
 	s.POST("/lesson", CreateLesson(service))
