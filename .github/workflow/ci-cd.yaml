@@ -1,0 +1,43 @@
+name: Curly-meme Backend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build the Go binary
+        run: go build -o backend .
+
+      - name: Copy the binary to the backend droplet
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.BACKEND_DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ./backend
+          target: /root/backend
+
+      - name: SSH into the backend droplet and restart the backend service
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.BACKEND_DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            systemctl restart curly-meme.service
