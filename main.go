@@ -22,12 +22,13 @@ func main() {
 	s.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
 	}))
-
-	// TODO: sort out endpoints
-	s.POST("/session", StartSession(service))
-	s.POST("/lesson", CreateLesson(service))
-	s.POST("/prompt", StudentPrompt(service), CheckSessionMiddleware(store))
-	s.GET("/chat-history", ChatHistory(store), CheckSessionMiddleware(store))
+	s.Group("/api")
+	{
+		s.POST("/session", StartSession(service))
+		s.POST("/lesson", CreateLesson(service))
+		s.POST("/prompt", StudentPrompt(service), CheckSessionMiddleware(store))
+		s.GET("/chat-history", ChatHistory(store), CheckSessionMiddleware(store))
+	}
 
 	// save the teacher preset
 	// separate the logic for teachers and students
