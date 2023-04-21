@@ -42,7 +42,7 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 			Content: msg.Content,
 		}
 		if msg.Role == System {
-			content := fmt.Sprintf("You will be teaching %s, be as concise as possible, don't give out answers for problems", messages[i].Content)
+			content := fmt.Sprintf("You will be teaching %s, be as concise as possible, answer no more than five sentences.", messages[i].Content)
 			messages[i].Content = content
 			messages[i].Role = openai.ChatMessageRoleSystem
 		}
@@ -61,9 +61,12 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 	resp, err := cc.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model:    openai.GPT3Dot5Turbo,
-			Messages: messages,
-			User:     sessionID,
+			Model:       openai.GPT3Dot5Turbo,
+			Messages:    messages,
+			User:        sessionID,
+			MaxTokens:   200,
+			Temperature: 0.5,
+			TopP:        0.5,
 		},
 	)
 
