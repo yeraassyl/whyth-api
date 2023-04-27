@@ -133,6 +133,6 @@ func (s *InMemoryStore) GetLessonPreset2(sessionID string) (string, error) {
 // i sdelat' knopku donata, na podderzhku servera.
 // nuzhno byt' transparent v tom chto ya ispolzuu openAI? dumau da.
 // ya hochu vse zhe kak to zaforcit' prodvizhenie AI obuchenya v shkolah, i mb budet drugaya versia dlya nih?
-// koroche v itoge nado mne zamutit' prostuyu vesh, ebanut' lesson i pryvyazyvat' chelov na lesson.
+// koroche v itoge nado mne zamutit' prostuyu vesh, sdelat' lesson i pryvyazyvat' chelov na lesson.
 // so it's almost done when I'll finish the teachers endpoints.
 // I need to test everything tho
