@@ -33,6 +33,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: List workspace files
+        run: ls -la
+        
       - name: Replace environment variables in env_file
         run: |
           envsubst < .env.example > env_file_processed
