@@ -1,6 +1,12 @@
 package main
 
 import (
+	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/go-redis/redis"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -8,12 +14,19 @@ import (
 )
 
 func main() {
-	client := openai.NewClient("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")
+	ctx, cancel := context.WithCancel(context.Background())
+
+	config, err := Read()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := openai.NewClient(config.ApiKey)
 
 	rClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     config.RedisAddr,
+		Password: config.RedisPassword,
+		DB:       config.RedisDB,
 	})
 	store := &InMemoryStore{rClient: rClient}
 	service := &ChatCompletion{client: client, store: store}
@@ -30,9 +43,21 @@ func main() {
 		api.GET("/chat-history", ChatHistory(store), CheckSessionMiddleware(store))
 	}
 
-	// save the teacher preset
-	// separate the logic for teachers and students
-	// start session endpoint for students
-	// sessions_id using links
-	s.Logger.Fatal(s.Start(":1337"))
+	errChan := make(chan error)
+	go func() {
+		if err := s.Start(":" + config.ServerPort); err != nil {
+			errChan <- err
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-ctx.Done():
+	case <-c:
+	case err := <-errChan:
+		log.Fatal(err)
+	}
+	cancel()
 }
