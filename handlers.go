@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"net/http"
@@ -132,8 +132,3 @@ func CheckSessionMiddleware(store *InMemoryStore) echo.MiddlewareFunc {
 		}
 	}
 }
-
-// sessionID, name.
-// sessionID chat_history
-// how to store the chat_history?
-// echo-contrib/session?

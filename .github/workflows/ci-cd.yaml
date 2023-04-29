@@ -1,4 +1,4 @@
-name: Curly-meme Backend CI/CD
+name: Whyth Backend CI/CD
 
 on:
   push:
@@ -13,7 +13,6 @@ jobs:
       SERVER_PORT: ${{ vars.SERVER_PORT }}
       REDIS_ADDR: ${{ secrets.REDIS_ADDR }}
       REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
-      REDIS_DB: ${{ secrets.REDIS_DB }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
