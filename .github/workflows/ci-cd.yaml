@@ -38,7 +38,7 @@ jobs:
 
       - name: Replace environment variables in env_file
         run: |
-          envsubst < .env.example > env_file_processed
+          envsubst < .env.example > env
         env:
           API_KEY: ${{ secrets.API_KEY }}
           SERVER_PORT: ${{ vars.SERVER_PORT }}
@@ -49,8 +49,8 @@ jobs:
           host: ${{ secrets.BACKEND_DROPLET_IP }}
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: env_file_processed
-          target: /root/env
+          source: env
+          target: /root
 
       - name: Download the built binary
         uses: actions/download-artifact@v2
