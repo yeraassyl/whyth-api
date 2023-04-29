@@ -50,7 +50,7 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: env
-          target: /root
+          target: /root/env
 
       - name: Download the built binary
         uses: actions/download-artifact@v2
