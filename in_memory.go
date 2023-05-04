@@ -19,23 +19,19 @@ func (s *InMemoryStore) CreateSession(lessonID, sessionID string, username strin
 		return err
 	}
 	expires := time.Unix(expiresUnix, 0)
-	preset, err := s.rClient.HGet(lessonID, "preset").Result()
-	if err != nil {
-		return err
-	}
 
 	pipe := s.rClient.Pipeline()
 
 	// Set username and expiration
 	pipe.HSet(sessionID, "username", username)
-	pipe.HSet(sessionID, "preset", preset)
+	pipe.HSet(sessionID, "lessonID", lessonID)
 	pipe.PExpireAt(sessionID, expires)
 
 	// Add session to the list
 	pipe.SAdd(lessonID+":sessions", sessionID)
 
 	_, err = pipe.Exec()
-	return nil
+	return err
 }
 
 func (s *InMemoryStore) GetStudentSessionForLesson(lessonID string) ([]string, error) {
@@ -85,26 +81,50 @@ func (s *InMemoryStore) GetChatHistory(sessionID string) ([]ChatMessage, error) 
 	return messages, nil
 }
 
-func (s *InMemoryStore) SaveLessonPresets(lessonID string, presets *PresetRequest) error {
+func (s *InMemoryStore) SaveLessonPresets(lessonID string, lessonName string, presets []Preset) error {
+	presetData, err := json.Marshal(presets)
+
+	if err != nil {
+		return err
+	}
+
 	sessionTimeout := 24 * time.Hour
 	expires := time.Now().Add(sessionTimeout)
 	pipe := s.rClient.Pipeline()
 
-	pipe.HSet(lessonID, "preset", presets.Preset)
+	pipe.HSet(lessonID, "name", lessonName)
+	pipe.HSet(lessonID, "preset", presetData)
 	pipe.HSet(lessonID, "expires", expires.Unix())
 	pipe.SAdd(lessonID+":sessions", "temp")
 	pipe.SPop(lessonID + ":sessions")
 	pipe.PExpireAt(lessonID, expires)
 	pipe.PExpireAt(lessonID+":sessions", expires)
 
-	_, err := pipe.Exec()
+	_, err = pipe.Exec()
 	return err
 }
 
-func (s *InMemoryStore) GetLessonPreset(lessonID string) (string, error) {
-	return s.rClient.HGet(lessonID, "preset").Result()
+func (s *InMemoryStore) GetLessonName(lessonID string) (string, error) {
+	return s.rClient.HGet(lessonID, "name").Result()
 }
 
-func (s *InMemoryStore) GetLessonPreset2(sessionID string) (string, error) {
-	return s.rClient.HGet(sessionID, "preset").Result()
+func (s *InMemoryStore) GetLessonPresets(lessonID string) ([]Preset, error) {
+	presetData, err := s.rClient.HGet(lessonID, "preset").Result()
+	if err != nil {
+		return nil, err
+	}
+	var presets []Preset
+	err = json.Unmarshal([]byte(presetData), &presets)
+	if err != nil {
+		return nil, err
+	}
+	return presets, nil
+}
+
+func (s *InMemoryStore) GetLessonNameForSession(sessionID string) (string, error) {
+	lessonID, err := s.rClient.HGet(sessionID, "lessonID").Result()
+	if err != nil {
+		return "", err
+	}
+	return s.rClient.HGet(lessonID, "name").Result()
 }

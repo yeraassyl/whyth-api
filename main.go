@@ -30,6 +30,8 @@ func main() {
 	})
 	store := &InMemoryStore{rClient: rClient}
 	service := &ChatCompletion{client: client, store: store}
+	presetStore := &PresetStore{}
+	presetStore.loadPresets("presets.json")
 
 	s := echo.New()
 	s.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
@@ -41,6 +43,7 @@ func main() {
 		api.POST("/lesson", CreateLesson(service))
 		api.POST("/prompt", StudentPrompt(service), CheckSessionMiddleware(store))
 		api.GET("/chat-history", ChatHistory(store), CheckSessionMiddleware(store))
+		api.GET("/presets", GetPresets(presetStore))
 	}
 
 	errChan := make(chan error)

@@ -1,3 +1,4 @@
 .idea/
 dump.rdb
 .env
+__debug_bin

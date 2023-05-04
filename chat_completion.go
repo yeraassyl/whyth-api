@@ -10,6 +10,8 @@ import (
 
 type Role int
 
+const lessonTopic = "You are an AI language model assisting students in learning the topic: '%s'. Focus your responses and guidance on this specific subject and ensure that your interactions are relevant and directly related to the topic being taught. Be concise, limit you response to 3 or 4 sentences. User can always press continue if he wants to know more"
+
 const (
 	System Role = iota
 	User
@@ -34,22 +36,23 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 		return nil, err
 	}
 
-	// Prepare the API request messages, including the conversation history
-	messages := make([]openai.ChatCompletionMessage, len(history))
-	for i, msg := range history {
-		messages[i] = openai.ChatCompletionMessage{
-			Role:    openai.ChatMessageRoleUser,
-			Content: msg.Content,
+	// Prepare the conversation history for the API request
+	messages := func(chatHistory []ChatMessage) []openai.ChatCompletionMessage {
+		messages := make([]openai.ChatCompletionMessage, len(chatHistory))
+		for i, msg := range chatHistory {
+			messages[i] = openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleUser,
+				Content: msg.Content,
+			}
+			if msg.Role == System {
+				messages[i].Role = openai.ChatMessageRoleSystem
+			}
+			if msg.Role == Assistant {
+				messages[i].Role = openai.ChatMessageRoleAssistant
+			}
 		}
-		if msg.Role == System {
-			content := fmt.Sprintf("You will be teaching %s, be as concise as possible, answer no more than five sentences.", messages[i].Content)
-			messages[i].Content = content
-			messages[i].Role = openai.ChatMessageRoleSystem
-		}
-		if msg.Role == Assistant {
-			messages[i].Role = openai.ChatMessageRoleAssistant
-		}
-	}
+		return messages
+	}(history)
 
 	// Add the user's new message to the API request
 	messages = append(messages, openai.ChatCompletionMessage{
@@ -61,11 +64,11 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 	resp, err := cc.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model:       openai.GPT3Dot5Turbo,
+			Model:       openai.GPT4,
 			Messages:    messages,
 			User:        sessionID,
-			MaxTokens:   200,
-			Temperature: 0.5,
+			MaxTokens:   150,
+			Temperature: 0.3,
 			TopP:        0.5,
 		},
 	)
@@ -101,34 +104,53 @@ func (cc *ChatCompletion) Prompt(ctx context.Context, data *PromptRequest, sessi
 	return assistantMsg, nil
 }
 
-func (cc *ChatCompletion) SaveLesson(lessonID string, data *PresetRequest) error {
-	return cc.store.SaveLessonPresets(lessonID, data)
+func (cc *ChatCompletion) SaveLesson(lessonID string, data *LessonCreateRequest) error {
+	return cc.store.SaveLessonPresets(lessonID, data.LessonName, data.Presets)
 }
 
-func (cc *ChatCompletion) CreateSession(lessonID, sessionID, username string) (*SessionCreatedResponse, error) {
-	// TODO: Should be transactional??
-
+func (cc *ChatCompletion) CreateSession(lessonID, sessionID, username string) error {
 	err := cc.store.CreateSession(lessonID, sessionID, username)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	preset, err := cc.store.GetLessonPreset(lessonID)
+	lessonName, err := cc.store.GetLessonName(lessonID)
+
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// TODO: polish system message to make it efficient
-	systemMessage := preset
-
+	// Set lesson topic as system message
 	err = cc.store.SaveMessage(sessionID, &ChatMessage{
-		Content:   systemMessage,
+		Content:   fmt.Sprintf(lessonTopic, lessonName),
 		Timestamp: time.Now().Unix(),
 		Role:      System,
 	})
 
-	response := &SessionCreatedResponse{
-		Preset: preset,
+	if err != nil {
+		return err
 	}
-	return response, err
+
+	presets, err := cc.store.GetLessonPresets(lessonID)
+
+	if err != nil {
+		return err
+	}
+
+	// Set presets as system messages for the new session
+
+	for _, preset := range presets {
+		if preset.Checked {
+			err = cc.store.SaveMessage(sessionID, &ChatMessage{
+				Content:   preset.Value,
+				Timestamp: time.Now().Unix(),
+				Role:      System,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return err
 }
