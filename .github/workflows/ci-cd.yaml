@@ -43,6 +43,15 @@ jobs:
           API_KEY: ${{ secrets.API_KEY }}
           SERVER_PORT: ${{ vars.SERVER_PORT }}
 
+      - name: Copy the presets.json to the server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.BACKEND_DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: presets.json
+          target: /root/backend/presets.json
+      
       - name: Copy env_file to the server
         uses: appleboy/scp-action@master
         with:
